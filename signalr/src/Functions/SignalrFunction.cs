@@ -1,8 +1,10 @@
+using System.Collections.Concurrent;
 using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.Azure.SignalR.Management;
 using Microsoft.Extensions.Logging;
 
 namespace Functions;
@@ -11,17 +13,20 @@ public class SignalrFunction
 {
     private static readonly HttpClient HttpClient = new();
     private readonly ILogger _logger;
+    private readonly ServiceHubContext serviceHubContext;
+    
     private const string MyHubName = "dng";
     private const string OnlineGroupName = "online";
     
     // TODO: This is not a good way to store game status in case of multiple instances
-    private static readonly GameStatus Status = new();
+    private static readonly ConcurrentDictionary<string, string> Status = new();
     
     // TODO: This is not a good way to store user mapping in case of multiple instances
     private static readonly Dictionary<string, string> UserMapping = new();
 
-    public SignalrFunction(ILoggerFactory loggerFactory)
+    public SignalrFunction(ILoggerFactory loggerFactory, ServiceManager serviceManager)
     {
+        this.serviceHubContext = serviceManager.CreateHubContextAsync(MyHubName, default).GetAwaiter().GetResult();
         _logger = loggerFactory.CreateLogger<SignalrFunction>();
     }
 
@@ -90,7 +95,7 @@ public class SignalrFunction
         };
         
         UserMapping.Add(invocationContext.ConnectionId, user);
-
+        
         return new SignalRMessageAction("ReceivedMessage")
         {
             GroupName = OnlineGroupName,
@@ -184,12 +189,6 @@ public class SignalrFunction
         [JsonPropertyName("connectionId")] public string? ConnectionId { get; set; }
         [JsonPropertyName("system")] public bool SystemMessage { get; set; }
         [JsonPropertyName("own")] public bool Own { get; set; }
-    }
-    
-    public class GameStatus
-    {
-        public string CurrentWord { get; set; } = "";
-        public string CurrentDrawer { get; set; } = "";
     }
 
     public class DrawData

@@ -39,9 +39,6 @@ const App = () => {
       </div>
 
       <div className="row-span-1 col-span-1 bg-green-200">
-        <div className="p-4">
-          Topic
-        </div>
         <Topic topic={currentTopic} />
       </div>
 
