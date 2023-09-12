@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect, useContext } from 'react';
 import SignalRContext from '../SignalR';
 
-const Canvas = () => {
+const Canvas = ({gameStatus}) => {
   const [drawing, setDrawing] = useState(false);
   const [previousPosition, setPreviousPosition] = useState(null);
   const canvasRef = useRef(null);
@@ -17,13 +17,13 @@ const Canvas = () => {
       const canvas = canvasRef.current;
       const ctx = canvas.getContext('2d');
       ctx.beginPath();
-      ctx.moveTo(drawData.x1, drawData.y1);
-      ctx.lineTo(drawData.x2, drawData.y2);
+      ctx.moveTo(drawData.X1, drawData.Y1);
+      ctx.lineTo(drawData.X2, drawData.Y2);
       ctx.stroke();
     };
 
     connection.on('ReceivedDraw', (drawData) => {
-      if (drawData.connectionId === connection.connectionId) return;
+      if (drawData.ConnectionId === connection.connectionId) return;
       // Handle received drawing data and draw it on the canvas of all users
       drawReceivedData(drawData);
     });
@@ -57,9 +57,12 @@ const Canvas = () => {
     return () => {
       window.removeEventListener('resize', updateCanvasDimensions);
     };
-  }, []);
+  }, [gameStatus]);
 
   const startDrawing = (e) => {
+    console.log('startDrawing called', gameStatus);
+    if (gameStatus.Game === 'started' && gameStatus.Drawer != connection.connectionId) return;
+    
     setDrawing(true);
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
@@ -68,6 +71,7 @@ const Canvas = () => {
     const y = e.nativeEvent.offsetY;
     ctx.moveTo(x, y);
     setPreviousPosition({ x, y });
+    
   };
 
   const draw = (e) => {

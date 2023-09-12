@@ -1,27 +1,36 @@
-using System.Collections.Concurrent;
 using System.Net;
 using System.Text.Json;
-using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Azure.SignalR.Management;
 using Microsoft.Extensions.Logging;
+using signalr.Common;
 
-namespace Functions;
+namespace signalr.Functions;
 
 public class SignalrFunction
 {
-    private static readonly HttpClient HttpClient = new();
     private readonly ILogger _logger;
     private readonly ServiceHubContext serviceHubContext;
-    
+
     private const string MyHubName = "dng";
+
     private const string OnlineGroupName = "online";
+
+    private static readonly HttpClient HttpClient = new();
     
+    private static readonly JsonSerializerOptions JsonOptions = new JsonSerializerOptions()
+    {
+        PropertyNameCaseInsensitive = true
+    };
+
     // TODO: This is not a good way to store game status in case of multiple instances
-    private static readonly ConcurrentDictionary<string, string> Status = new();
-    
+
+    private static readonly GameStatus Status = new();
+
     // TODO: This is not a good way to store user mapping in case of multiple instances
+
     private static readonly Dictionary<string, string> UserMapping = new();
 
     public SignalrFunction(ILoggerFactory loggerFactory, ServiceManager serviceManager)
@@ -70,6 +79,7 @@ public class SignalrFunction
         [SignalRTrigger(MyHubName, "connections", "disconnected")] SignalRInvocationContext invocationContext)
     {
         _logger.LogInformation($"{invocationContext.ConnectionId} has disconnected");
+        UserMapping.Remove(invocationContext.ConnectionId);
         return new SignalRGroupAction(SignalRGroupActionType.Remove)
         {
             GroupName = OnlineGroupName,
@@ -102,7 +112,7 @@ public class SignalrFunction
             Arguments = new object[] {message}
         };
     }
-    
+
     [Function("LeaveChat")]
     [SignalROutput(HubName = MyHubName)]
     public SignalRMessageAction LeaveChat(
@@ -145,6 +155,25 @@ public class SignalrFunction
             ConnectionId = invocationContext.ConnectionId,
             Timestamp = DateTime.UtcNow
         };
+
+        // check if the message contains the word
+        if (message.Contains(Status.Word))
+        {
+            var newMsg = msg.Text.Replace(Status.Word, new string('*', Status.Word.Length), StringComparison.InvariantCultureIgnoreCase);
+            msg.Text = newMsg;
+            if (invocationContext.ConnectionId != Status.Drawer)
+            {
+                serviceHubContext.Clients.Group(OnlineGroupName).SendAsync("ReceivedMessage", new Message()
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    Name = "System",
+                    Text = $"{user} got the correct word!",
+                    ConnectionId = invocationContext.ConnectionId,
+                    Timestamp = DateTime.UtcNow,
+                    SystemMessage = true
+                });
+            }
+        }
         
         return new SignalRMessageAction("ReceivedMessage")
         {
@@ -164,7 +193,7 @@ public class SignalrFunction
         DrawData? drawDataDto;
         try
         {
-            drawDataDto = JsonSerializer.Deserialize<DrawData>(drawData);
+            drawDataDto = JsonSerializer.Deserialize<DrawData>(drawData, JsonOptions);
         }
         catch (Exception e)
         {
@@ -179,36 +208,178 @@ public class SignalrFunction
         drawDataDto.ConnectionId = invocationContext.ConnectionId;
         return new SignalRMessageAction("ReceivedDraw", new object[] { drawDataDto });
     }
-
-    public class Message
+    
+    [Function("GameControl")]
+    [SignalROutput(HubName = MyHubName)]
+    public SignalRMessageAction GameControl(
+        [SignalRTrigger(MyHubName, "messages", "GameControl", "control")]
+        SignalRInvocationContext invocationContext,
+        string control)
     {
-        [JsonPropertyName("id")] public string? Id { get; set; }
-        [JsonPropertyName("name")] public string? Name { get; set; }
-        [JsonPropertyName("text")] public string Text { get; set; }
-        [JsonPropertyName("timestamp")] public DateTime Timestamp { get; set; }
-        [JsonPropertyName("connectionId")] public string? ConnectionId { get; set; }
-        [JsonPropertyName("system")] public bool SystemMessage { get; set; }
-        [JsonPropertyName("own")] public bool Own { get; set; }
-    }
-
-    public class DrawData
-    {
-        [JsonPropertyName("connectionId")]
-        public string ConnectionId { get; set; }
-        [JsonPropertyName("x1")]
-        public int X1 { get; set; }
-        [JsonPropertyName("y1")]
-        public int Y1 { get; set; }
-        [JsonPropertyName("x2")]
-        public int X2 { get; set; }
-        [JsonPropertyName("y2")]
-        public int Y2 { get; set; }
+        switch (control)
+        {
+            case "RefreshWord":
+            {
+                if (invocationContext.ConnectionId == Status.Drawer)
+                {
+                    var newWord = Words.GetRandomWord();
+                    Status.Word = newWord;
+                    serviceHubContext.Clients.Client(Status.Drawer).SendAsync("RefreshGame", Status);
+                    serviceHubContext.Clients.Group(OnlineGroupName).SendAsync("ReceivedMessage", new Message()
+                    {
+                        Id = Guid.NewGuid().ToString(),
+                        Name = "System",
+                        Text = $"The drawer {UserMapping[Status.Drawer]} changed the word",
+                        ConnectionId = invocationContext.ConnectionId,
+                        Timestamp = DateTime.UtcNow,
+                        SystemMessage = true
+                    });
+                }
+                break;
+            }
+            case "RefreshGame":
+            {
+                RefreshGame();
+                break;
+            }
+        }
+        var user = UserMapping[invocationContext.ConnectionId];
+        var msg = new Message()
+        {
+            Id = Guid.NewGuid().ToString(),
+            Name = user,
+            Text = control,
+            ConnectionId = invocationContext.ConnectionId,
+            Timestamp = DateTime.UtcNow
+        };
+        
+        return new SignalRMessageAction("ReceivedMessage")
+        {
+            GroupName = OnlineGroupName,
+            Arguments = new object[] {msg}
+        };
     }
     
+    [Function("GameSchedule")]
+    public void GameSchedule(
+        [TimerTrigger("*/5 * * * * *")] TimerInfo myTimer)
+    {
+        if (Status.Game == "started")
+        {
+            var endTime = DateTime.Parse(Status.Time);
+            if (DateTime.Now < endTime) return;
+            
+            // round game is over, send message to all users
+            serviceHubContext.Clients.Group(OnlineGroupName).SendAsync("ReceivedMessage", new Message()
+            {
+                Id = Guid.NewGuid().ToString(),
+                Name = "System",
+                Text = $"Time is up! The word is {Status.Word}. Game will restart in 5 seconds.",
+                Timestamp = DateTime.UtcNow,
+                SystemMessage = true
+            });
+            ResetGame();
+        }
+        else if (Status.Game == "waiting")
+        {
+            if (UserMapping.Count >= 2)
+            {
+               RefreshGame();
+            }
+            else
+            {
+                serviceHubContext.Clients.Group(OnlineGroupName).SendAsync("ReceivedMessage", new Message()
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    Name = "System",
+                    Text = "Waiting for more players",
+                    Timestamp = DateTime.UtcNow,
+                    SystemMessage = true
+                });
+            }
+        }
+    }
+    
+    private void RefreshGame()
+    {
+        var drawer = GetRandomUser();
+
+        serviceHubContext.Clients.Group(OnlineGroupName).SendAsync("ReceivedMessage", new Message()
+        {
+            Id = Guid.NewGuid().ToString(),
+            Name = "System",
+            Text = $"{UserMapping[drawer]} is drawing",
+            Timestamp = DateTime.UtcNow,
+            SystemMessage = true
+        });
+        
+        var game = new GameStatus()
+        {
+            Drawer = drawer,
+            Game = "started",
+            Time = DateTime.UtcNow.AddSeconds(60).ToString("O")
+        };
+        serviceHubContext.Clients.GroupExcept(OnlineGroupName, drawer).SendAsync("RefreshGame", game);
+
+        var newWord = Words.GetRandomWord();
+        game.Word = newWord;
+        
+        Status.Drawer = game.Drawer;
+        Status.Game = game.Game;
+        Status.Time = game.Time;
+        Status.Word = game.Word;
+        
+        serviceHubContext.Clients.Client(drawer).SendAsync("RefreshGame", game);
+    }
+
+    private void ResetGame()
+    {
+        var game = new GameStatus()
+        {
+            Drawer = "",
+            Game = "waiting",
+            Time = "",
+            Word = ""
+        };
+        serviceHubContext.Clients.Group(OnlineGroupName).SendAsync("RefreshGame", game);
+        Status.Drawer = game.Drawer;
+        Status.Game = game.Game;
+        Status.Time = game.Time;
+        Status.Word = game.Word;
+    }
+
     private string GetRandomUser()
     {
-        var users = UserMapping.Values.ToList();
+        var users = UserMapping.ToList();
         var random = new Random();
-        return users[random.Next(users.Count)];
+        return users[random.Next(users.Count)].Key;
     }
+}
+
+public class Message
+{
+    public string? Id { get; set; }
+    public string? Name { get; set; }
+    public string Text { get; set; }
+    public DateTime Timestamp { get; set; }
+    public string? ConnectionId { get; set; }
+    public bool SystemMessage { get; set; }
+    public bool Own { get; set; }
+}
+
+public class DrawData
+{
+    public string ConnectionId { get; set; }
+    public int X1 { get; set; }
+    public int Y1 { get; set; }
+    public int X2 { get; set; }
+    public int Y2 { get; set; }
+}
+
+public class GameStatus
+{
+    public string Word { get; set; } = "";
+    public string Game { get; set; } = "waiting";
+    public string Drawer { get; set; } = "";
+    public string Time { get; set; } = "";
 }

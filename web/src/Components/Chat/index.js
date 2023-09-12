@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
 import SignalRContext from '../SignalR';
 
-const Chat = ({userName}) => {
+const Chat = ({}) => {
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
   const inputRef = useRef(null);
@@ -9,8 +9,8 @@ const Chat = ({userName}) => {
 
   // Simulated data for the chat messages
   const initialMessages = [
-    { id: 1, name: 'You', text: "It's an animal", own: true, system: false },
-    { id: 2, name: 'Friend', text: 'Dog', own: false, system: false },
+    { Id: 1, Name: 'You', Text: "It's an animal", Own: true, SystemMessage: false },
+    { Id: 2, Name: 'Friend', Text: 'Dog', Own: false, SystemMessage: false },
   ];
 
   useEffect(() => {
@@ -60,12 +60,12 @@ const Chat = ({userName}) => {
       <div className="flex-grow flex flex-col space-y-2 overflow-y-auto" ref={inputRef}>
         {messages.map((message) => (
           <div
-            key={message.id}
-            className={`${message.system ? 'self-start bg-green-300 text-black': message.own || message.connectionId === connection.connectionId ? 'self-end bg-blue-500 text-white' : 'self-start bg-white text-black'
+            key={message.Id}
+            className={`${message.SystemMessage ? 'self-start bg-green-300 text-black': message.Own || message.ConnectionId === connection.connectionId ? 'self-end bg-blue-500 text-white' : 'self-start bg-white text-black'
             } p-2 rounded-lg max-w-md`}
           >
-            <p className="font-semibold">{message.name}</p>
-            <p>{message.text}</p>
+            <p className="font-semibold">{message.Name}</p>
+            <p>{message.Text}</p>
           </div>
         ))}
       </div>

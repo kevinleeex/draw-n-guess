@@ -4,14 +4,26 @@ import Canvas from './Components/Canvas';
 import Topic from './Components/Topic';
 import Chat from './Components/Chat';
 import UserNameModal from './Components/Modal';
+import SignalRContext from './Components/SignalR';
 
 const App = () => {
   const currentTopic = "Cat"; 
   const [modalOpened, setModalOpened] = useState(true);
   const [userName, setUserName] = useState("");
+  const connection = useContext(SignalRContext);
+  const [gameStatus, setGameStatus] = useState({});
 
   useEffect(() => {
     document.title = 'Draw N Guess';
+    connection.on('RefreshGame', (gameStatus) => {
+      console.log('RefreshGame called');
+      console.log(JSON.stringify(gameStatus));
+      setGameStatus(gameStatus);
+    });
+
+    return () => {
+      connection.off('RefreshGame');
+    }
   }, []);
 
   const handleNameSubmit = (name) => {
@@ -35,15 +47,15 @@ const App = () => {
       <UserNameModal isOpen={modalOpened} onClose={handleModalClose} onNameSubmit={handleNameSubmit}/>
 
       <div className="row-span-5 col-span-1 bg-blue-200">
-        <Canvas />
+        <Canvas gameStatus={gameStatus} />
       </div>
 
       <div className="row-span-1 col-span-1 bg-green-200">
-        <Topic topic={currentTopic} />
+        <Topic gameStatus={gameStatus} />
       </div>
 
       <div className="row-span-4 col-span-1 bg-yellow-200">
-        <Chat userName={userName}/>
+        <Chat gameStatus={gameStatus}/>
       </div>
     </div>
 
