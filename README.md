@@ -178,9 +178,12 @@ Then you need to update the Azure Functions endpoint in the web client.
 
 - [ ] Fix the issue that the drawing is not smooth
 - [ ] Better UI
+- [ ] A logo
 - [ ] Keep drawing when resizing the window
 - [ ] Add a score system
-- [ ] Add tips for the guesser
+- [ ] Add tips for the guesse
+- [ ] *Add AI to generate image based on the sketch
+- [ ] *Add AI player
 
 
 ## Contributing
