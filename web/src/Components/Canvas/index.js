@@ -1,14 +1,31 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useContext } from 'react';
+import SignalRContext from '../SignalR';
 
 const Canvas = () => {
   const [drawing, setDrawing] = useState(false);
+  const [previousPosition, setPreviousPosition] = useState(null);
   const canvasRef = useRef(null);
   const storedImageData = useRef(null);
+  const connection = useContext(SignalRContext);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     const parent = canvas.parentElement;
     const ctx = canvas.getContext('2d');
+
+    const drawReceivedData = (drawData) => {
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+      ctx.beginPath();
+      ctx.moveTo(drawData.x1, drawData.y1);
+      ctx.lineTo(drawData.x2, drawData.y2);
+      ctx.stroke();
+    };
+
+    connection.on('ReceiveDraw', (drawData) => {
+      // Handle received drawing data and draw it on the canvas of all users
+      drawReceivedData(drawData);
+    });
 
     // Function to update canvas dimensions
     const updateCanvasDimensions = () => {
@@ -49,6 +66,7 @@ const Canvas = () => {
     const x = e.nativeEvent.offsetX;
     const y = e.nativeEvent.offsetY;
     ctx.moveTo(x, y);
+    setPreviousPosition({ x, y });
   };
 
   const draw = (e) => {
@@ -59,10 +77,14 @@ const Canvas = () => {
     const y = e.nativeEvent.offsetY;
     ctx.lineTo(x, y);
     ctx.stroke();
+    const drawData = { x1: previousPosition.x, y1: previousPosition.y, x2: x, y2: y };
+    connection.invoke('SendDraw', JSON.stringify(drawData));
+    setPreviousPosition({ x, y });
   };
 
   const stopDrawing = () => {
     setDrawing(false);
+    setPreviousPosition(null);
     const canvas = canvasRef.current;
     canvas.getContext('2d').closePath();
   };
@@ -77,7 +99,7 @@ const Canvas = () => {
         onMouseMove={draw}
         onMouseUp={stopDrawing}
         onMouseOut={stopDrawing}
-        class="cursor-pointer"
+        className="cursor-pointer"
         style={{ width: '100%', height: '100%' }}
       ></canvas>
     </div>
