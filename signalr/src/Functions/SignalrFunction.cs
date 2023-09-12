@@ -39,15 +39,6 @@ public class SignalrFunction
         _logger = loggerFactory.CreateLogger<SignalrFunction>();
     }
 
-    [Function("index")]
-    public static HttpResponseData GetHomePage([HttpTrigger(AuthorizationLevel.Anonymous)] HttpRequestData req)
-    {
-        var response = req.CreateResponse(HttpStatusCode.OK);
-        response.WriteString(File.ReadAllText("content/index.html"));
-        response.Headers.Add("Content-Type", "text/html");
-        return response;
-    }
-
     [Function("negotiate")]
     public static HttpResponseData Negotiate([HttpTrigger(AuthorizationLevel.Anonymous)] HttpRequestData req,
         [SignalRConnectionInfoInput(HubName = MyHubName)]
@@ -106,6 +97,15 @@ public class SignalrFunction
         
         UserMapping.Add(invocationContext.ConnectionId, user);
         
+        // send game status to the new user
+        var gameStatus = new GameStatus()
+        {
+            Drawer = Status.Drawer,
+            Game = Status.Game,
+            Time = Status.Time,
+        };
+        serviceHubContext.Clients.Client(invocationContext.ConnectionId).SendAsync("RefreshGame", gameStatus);
+        
         return new SignalRMessageAction("ReceivedMessage")
         {
             GroupName = OnlineGroupName,
@@ -157,7 +157,7 @@ public class SignalrFunction
         };
 
         // check if the message contains the word
-        if (message.Contains(Status.Word, StringComparison.InvariantCultureIgnoreCase))
+        if (!string.IsNullOrEmpty(Status.Word) && message.Contains(Status.Word, StringComparison.InvariantCultureIgnoreCase))
         {
             var newMsg = msg.Text.Replace(Status.Word, new string('*', Status.Word.Length), StringComparison.InvariantCultureIgnoreCase);
             msg.Text = newMsg;
