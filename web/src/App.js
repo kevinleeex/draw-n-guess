@@ -1,5 +1,5 @@
 // App.js
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useContext} from 'react';
 import Canvas from './Components/Canvas';
 import Topic from './Components/Topic';
 import Chat from './Components/Chat';

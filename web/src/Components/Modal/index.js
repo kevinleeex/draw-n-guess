@@ -10,6 +10,8 @@ const UserNameModal = ({ isOpen, onClose, onNameSubmit }) => {
 
     useEffect(() => {
         if (!connectionEstablished) {
+            if (connection.state != "Disconnected") { return; }
+
             console.log("Connetion is not established.Connecting to the server...");
             connection
                 .start()
