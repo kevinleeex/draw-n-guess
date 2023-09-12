@@ -1,12 +1,12 @@
 import React, { createContext, useEffect } from 'react';
 import * as signalR from '@microsoft/signalr';
+import { SIGNALR_BASE_URL } from '../../config';
 
 const SignalRContext = createContext();
 
 export const SignalRProvider = ({ children }) => {
-    const baseUrl = 'http://localhost:7071/api/'; // Azure Function endpoint
     const connection = new signalR.HubConnectionBuilder()
-        .withUrl(baseUrl, {
+        .withUrl(SIGNALR_BASE_URL, {
             headers: {
                 'Access-Control-Allow-Origin': '*',
                 'Access-Control-Allow-Credentials': 'true',
