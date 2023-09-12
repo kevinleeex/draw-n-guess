@@ -121,6 +121,13 @@ We also configured CORS to allow the web client to negotiate with the SignalR se
 Install the Azure Functions Core Tools to run the Azure Functions locally.
 See [Azure Functions Core Tools](https://learn.microsoft.com/en-us/azure/azure-functions/functions-run-local?tabs=macos%2Cisolated-process%2Cnode-v4%2Cpython-v2%2Chttp-trigger%2Ccontainer-apps&pivots=programming-language-csharp#install-the-azure-functions-core-tools) for more details.
 
+Install and start the Azurite to emulate Azure Storage locally.
+
+```bash
+npm install -g azurite
+azurite --silent --loose --blobHost
+```
+
 Start the Azure Functions
 
 ```bash
