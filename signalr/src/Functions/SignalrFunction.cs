@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
@@ -151,11 +152,27 @@ public class SignalrFunction
     [Function("SendDraw")]
     [SignalROutput(HubName = MyHubName)]
     public static SignalRMessageAction SendDraw(
-        [SignalRTrigger("Hub", "messages", "SendDraw", "drawData")]
+        [SignalRTrigger(MyHubName, "messages", "SendDraw", "drawData")]
         SignalRInvocationContext invocationContext,
         string drawData)
     {
-        return new SignalRMessageAction("ReceivedDraw", new object[] { drawData });
+        DrawData? drawDataDto;
+        try
+        {
+            drawDataDto = JsonSerializer.Deserialize<DrawData>(drawData);
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            throw;
+        }
+
+        if (drawDataDto == null)
+        {
+            throw new ArgumentException("Invalid draw data");
+        }
+        drawDataDto.ConnectionId = invocationContext.ConnectionId;
+        return new SignalRMessageAction("ReceivedDraw", new object[] { drawDataDto });
     }
 
     public class Message
@@ -173,6 +190,20 @@ public class SignalrFunction
     {
         public string CurrentWord { get; set; } = "";
         public string CurrentDrawer { get; set; } = "";
+    }
+
+    public class DrawData
+    {
+        [JsonPropertyName("connectionId")]
+        public string ConnectionId { get; set; }
+        [JsonPropertyName("x1")]
+        public int X1 { get; set; }
+        [JsonPropertyName("y1")]
+        public int Y1 { get; set; }
+        [JsonPropertyName("x2")]
+        public int X2 { get; set; }
+        [JsonPropertyName("y2")]
+        public int Y2 { get; set; }
     }
     
     private string GetRandomUser()

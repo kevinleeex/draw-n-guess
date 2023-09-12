@@ -1,5 +1,5 @@
 // App.js
-import React, {useState} from 'react';
+import React, {useState, useEffect} from 'react';
 import Canvas from './Components/Canvas';
 import Topic from './Components/Topic';
 import Chat from './Components/Chat';
@@ -9,6 +9,10 @@ const App = () => {
   const currentTopic = "Cat"; 
   const [modalOpened, setModalOpened] = useState(true);
   const [userName, setUserName] = useState("");
+
+  useEffect(() => {
+    document.title = 'Draw N Guess';
+  }, []);
 
   const handleNameSubmit = (name) => {
     console.log(name);

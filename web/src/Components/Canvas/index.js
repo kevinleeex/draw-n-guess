@@ -22,7 +22,8 @@ const Canvas = () => {
       ctx.stroke();
     };
 
-    connection.on('ReceiveDraw', (drawData) => {
+    connection.on('ReceivedDraw', (drawData) => {
+      if (drawData.connectionId === connection.connectionId) return;
       // Handle received drawing data and draw it on the canvas of all users
       drawReceivedData(drawData);
     });
@@ -77,8 +78,8 @@ const Canvas = () => {
     const y = e.nativeEvent.offsetY;
     ctx.lineTo(x, y);
     ctx.stroke();
-    const drawData = { x1: previousPosition.x, y1: previousPosition.y, x2: x, y2: y };
-    connection.invoke('SendDraw', JSON.stringify(drawData));
+    const drawData = { connectionId: connection.connectionId, x1: previousPosition.x, y1: previousPosition.y, x2: x, y2: y };
+    connection.send('SendDraw', drawData);
     setPreviousPosition({ x, y });
   };
 
@@ -86,7 +87,8 @@ const Canvas = () => {
     setDrawing(false);
     setPreviousPosition(null);
     const canvas = canvasRef.current;
-    canvas.getContext('2d').closePath();
+    const ctx = canvas.getContext('2d');
+    ctx.closePath();
   };
 
   return (
