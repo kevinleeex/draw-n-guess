@@ -157,7 +157,7 @@ public class SignalrFunction
         };
 
         // check if the message contains the word
-        if (message.Contains(Status.Word))
+        if (message.Contains(Status.Word, StringComparison.InvariantCultureIgnoreCase))
         {
             var newMsg = msg.Text.Replace(Status.Word, new string('*', Status.Word.Length), StringComparison.InvariantCultureIgnoreCase);
             msg.Text = newMsg;
