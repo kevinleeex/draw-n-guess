@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
 import SignalRContext from '../SignalR';
+import confetti from 'canvas-confetti';
 
-const Chat = ({}) => {
+const Chat = ({ }) => {
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
   const inputRef = useRef(null);
@@ -17,15 +18,25 @@ const Chat = ({}) => {
     const handleReceivedMessage = (message) => {
       console.log('receivedmessage called');
       console.log(JSON.stringify(message));
+      
+      if (message.SystemMessage && message.Text.includes('correct')) {
+        confetti({
+          angle:45,
+          particleCount: 100,
+          startVelocity: 60,
+          spread: 80,
+          origin: { y: 0.8 }
+        });
+      }
       setMessages((prevMessages) => [...prevMessages, message]);
     };
-  
+
     connection.on('receivedmessage', handleReceivedMessage);
-  
+
     // Initialize messages
     console.log('Initialize messages');
     setMessages(initialMessages);
-  
+
     // Remove the event handler when the component is unmounted
     return () => {
       connection.off('receivedmessage');
@@ -40,7 +51,7 @@ const Chat = ({}) => {
     if (inputText.trim() === '') return;
 
     await connection.invoke('SendMessage', inputText);
-    
+
     setInputText('');
   };
 
@@ -61,8 +72,8 @@ const Chat = ({}) => {
         {messages.map((message) => (
           <div
             key={message.Id}
-            className={`${message.SystemMessage ? 'self-start bg-green-300 text-black': message.Own || message.ConnectionId === connection.connectionId ? 'self-end bg-blue-500 text-white' : 'self-start bg-white text-black'
-            } p-2 rounded-lg max-w-md`}
+            className={`${message.SystemMessage ? 'self-start bg-green-300 text-black' : message.Own || message.ConnectionId === connection.connectionId ? 'self-end bg-blue-500 text-white' : 'self-start bg-white text-black'
+              } p-2 rounded-lg max-w-md`}
           >
             <p className="font-semibold">{message.Name}</p>
             <p>{message.Text}</p>

@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Net;
 using System.Text.Json;
 using Microsoft.AspNetCore.SignalR;
@@ -26,13 +27,11 @@ public class SignalrFunction
     };
 
     // TODO: This is not a good way to store game status in case of multiple instances
-
     private static readonly GameStatus Status = new();
 
     // TODO: This is not a good way to store user mapping in case of multiple instances
-
     private static readonly Dictionary<string, string> UserMapping = new();
-
+    
     public SignalrFunction(ILoggerFactory loggerFactory, ServiceManager serviceManager)
     {
         this.serviceHubContext = serviceManager.CreateHubContextAsync(MyHubName, default).GetAwaiter().GetResult();
@@ -280,6 +279,8 @@ public class SignalrFunction
     public void GameSchedule(
         [TimerTrigger("*/5 * * * * *")] TimerInfo myTimer)
     {
+        // notify users
+        serviceHubContext.Clients.Group(OnlineGroupName).SendAsync("UpdateCounter", UserMapping.Count);
         if (Status.Game == "started")
         {
             var endTime = DateTime.Parse(Status.Time);
