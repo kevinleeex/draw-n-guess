@@ -70,7 +70,23 @@ public class SignalrFunction
         [SignalRTrigger(MyHubName, "connections", "disconnected")] SignalRInvocationContext invocationContext)
     {
         _logger.LogInformation($"{invocationContext.ConnectionId} has disconnected");
-        UserMapping.Remove(invocationContext.ConnectionId);
+
+        if (UserMapping.TryGetValue(invocationContext.ConnectionId, out string? user))
+        {
+            var message = new Message()
+            {
+                Id = Guid.NewGuid().ToString(),
+                Name = "System",
+                Text = $"{user} has left the chat",
+                ConnectionId = invocationContext.ConnectionId,
+                Timestamp = DateTime.UtcNow,
+                SystemMessage = true
+            };
+            this.serviceHubContext.Clients.Group(OnlineGroupName).SendAsync("ReceivedMessage", message);
+        
+            UserMapping.Remove(invocationContext.ConnectionId);
+        }
+        
         return new SignalRGroupAction(SignalRGroupActionType.Remove)
         {
             GroupName = OnlineGroupName,
