@@ -1,9 +1,9 @@
 # draw-n-guess
 A Draw and Guess game to be used as Azure SignalR service example.
 
-Code by [Kevin Lee](https://github.com/kevinleeex)🐼, [Github Copilot](https://copilot.github.com/)🤖, [ChatGPT](https://chat.openai.com)💬
+Demo by [Kevin Lee](https://github.com/kevinleeex)🐼, [Jacy Gao](https://github.com/jacygao), [Github Copilot](https://copilot.github.com/)🤖, [ChatGPT](https://chat.openai.com)💬
 
-> The code in this repository is for **demo purposes only**. It is not production ready and it is not intended to be used in production.
+> Please note that the code in this repository is for **demonstration purposes only**. It was developed in a couple of hours to showcase how to use Azure SignalR service to build a real-time application in a fast and easy way. It is not production-ready and is not intended to be used in a production environment. Use at your own risk.
 
 ## Preview
 ![demo](./assets/demo.GIF)
@@ -169,6 +169,8 @@ Then you need to update the Azure Functions endpoint in the web client.
 
 ## Issues & To-Dos
 
+- [ ] Fix the issue that the drawing is not smooth
+- [ ] Better UI
 - [ ] Keep drawing when resizing the window
 - [ ] Add a score system
 - [ ] Add tips for the guesser
