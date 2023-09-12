@@ -125,7 +125,7 @@ Install and start the Azurite to emulate Azure Storage locally.
 
 ```bash
 npm install -g azurite
-azurite --silent --loose --blobHost
+azurite
 ```
 
 Start the Azure Functions
