@@ -180,6 +180,7 @@ Then you need to update the Azure Functions endpoint in the web client.
 - [ ] Better UI
 - [ ] A logo
 - [ ] Keep drawing when resizing the window
+- [ ] Add rooms
 - [ ] Add a score system
 - [ ] Add tips for the guesse
 - [ ] *Add AI to generate image based on the sketch
